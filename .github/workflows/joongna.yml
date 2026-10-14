@@ -3,9 +3,9 @@
 # 필요한 저장소 Secret: INGEST_TOKEN
 name: joongna-collector
 
+# 2026-10-15: 중고나라가 GitHub 서버 요청을 403으로 차단 → 정기 실행 중지(우회하지 않음).
+# 수동 실행만 남겨둠.
 on:
-  schedule:
-    - cron: '*/10 * * * *'   # GitHub 사정에 따라 몇 분 늦게 실행될 수 있음
   workflow_dispatch: {}       # Actions 탭에서 수동 실행
 
 concurrency:
