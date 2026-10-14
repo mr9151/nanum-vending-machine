@@ -1,0 +1,31 @@
+# 중고나라 공개 무료나눔 목록을 10분마다 수집해 나눔자판기 출시 서버로 올립니다.
+# 수집 규칙: robots.txt 준수, 요청 간 1.5초, 403/429 응답 시 중단(우회 없음), 판매자 정보 미수집
+# 필요한 저장소 Secret: INGEST_TOKEN
+name: joongna-collector
+
+on:
+  schedule:
+    - cron: '*/10 * * * *'   # GitHub 사정에 따라 몇 분 늦게 실행될 수 있음
+  workflow_dispatch: {}       # Actions 탭에서 수동 실행
+
+concurrency:
+  group: joongna-collector
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - run: npm run collect
+        env:
+          INGEST_TOKEN: ${{ secrets.INGEST_TOKEN }}
