@@ -5,6 +5,8 @@
 // 사용법 (나눔자판기 폴더에서):
 //   node scripts/joongna-collector.mjs          # 1회 수집 후 업로드
 //   node scripts/joongna-collector.mjs --loop   # 10분마다 반복
+//   SKIP_IF_RECENT_MIN=8 node scripts/joongna-collector.mjs
+//       → 다른 기기(갤럭시 폰 등)가 8분 안에 이미 올렸으면 이번 회차는 건너뜀 (PC를 예비로 둘 때)
 // 설정: .env.collector 파일에 INGEST_URL, INGEST_TOKEN (토큰은 Worker 비밀값과 동일)
 import {readFileSync} from 'node:fs';
 import {createPublicCrawler} from '../server/public-crawler.js';
@@ -18,7 +20,20 @@ if(!env.INGEST_TOKEN){console.error('INGEST_TOKEN 이 없어요 (.env.collector 
 const listings=new Map();
 const crawler=createPublicCrawler(listings,{enabled:true,maxPages:10,intervalMs:600000});
 
+const SKIP_MIN=Number(env.SKIP_IF_RECENT_MIN)||0;
+const STATUS_URL=INGEST_URL.replace(/\/api\/ingest\/joongna$/,'/api/crawl-status');
+
+/** 다른 수집기가 최근에 올렸는지 (중고나라에 같은 요청을 두 번 보내지 않기 위해) */
+async function recentlyCollected(){
+  if(!SKIP_MIN)return false;
+  try{
+    const s=await (await fetch(STATUS_URL,{signal:AbortSignal.timeout(10000)})).json();
+    return s.via==='collector'&&Date.now()-(Number(s.lastAttemptAt)||0)<SKIP_MIN*60000;
+  }catch{return false;}
+}
+
 async function once(){
+  if(await recentlyCollected()){console.log(new Date().toLocaleString('ko-KR'),`다른 기기가 ${SKIP_MIN}분 안에 수집함 → 건너뜀`);return;}
   await crawler.run();
   const status=crawler.status();
   const items=[...listings.values()].filter(l=>l.crawled&&l.source==='joongna');
